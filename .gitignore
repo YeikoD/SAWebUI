@@ -1,14 +1,14 @@
-# Sistema / editores
+# System / editors
 Thumbs.db
 desktop.ini
 .vs/
 .vscode/
 .idea/
 
-# Perfil y cache de Chromium Embedded Framework.
-# Es junk de runtime: se regenera solo al abrir la UI, pesa ~75 MB y solo
-# contiene datos locales de esta maquina (rutas absolutas, cache del perfil).
+# Chromium Embedded Framework profile and cache.
+# Runtime junk: it is regenerated every time the UI opens, weighs ~75 MB, and only
+# holds local data from one machine (absolute paths, profile cache).
 SAWebUICefCache/
 
-# Logs de runtime (se rotan y acumulan copies con rutas del equipo)
+# Runtime logs (they rotate and pile up copies containing the dev machine paths)
 *.log

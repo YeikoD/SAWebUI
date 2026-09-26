@@ -1,19 +1,20 @@
-# Avisos de terceros
+# Third-Party Notices
 
-Este repo distribuye binarios propios que incorporan componentes de terceros. Sus
-licencias originales se conservan intactas en `THIRD-PARTY-LICENSES/`.
+This repository distributes proprietary binaries that embed third-party components.
+Their original licenses are preserved intact in `THIRD-PARTY-LICENSES/`.
 
 ## Chromium Embedded Framework (CEF)
 
 - **Copyright:** (c) 2008-2020 Marshall A. Greenblatt. Portions Copyright (c)
   2006-2009 Google Inc.
-- **Licencia:** BSD de 3 clausulas
+- **License:** BSD 3-Clause
 - **Version:** CEF 154.0.26+ge72305f+chromium-154.0.8037.58 (windows32)
-- **Texto de la licencia:** `THIRD-PARTY-LICENSES/cef-LICENSE.txt`
-- **Creditos completos de Chromium:** `CREDITS.html` en la distribucion oficial de
-  CEF. No se incluye aqui por peso (8,8 MB); se puede obtener del paquete oficial.
+- **License text:** `THIRD-PARTY-LICENSES/cef-LICENSE.txt`
+- **Full Chromium credits:** `CREDITS.html` in the official CEF distribution. It is
+  not included here due to its size (8.8 MB); it can be obtained from the official
+  package.
 
-La clausula BSD exige que las redistribuciones en forma binaria reproduzcan el
-aviso de copyright, la lista de condiciones y laIMERDA en la documentacion o en
-otros materiales incluidos con la distribucion. Este archivo y el directorio
-`THIRD-PARTY-LICENSES/` cumplen con ese requisito.
+The BSD clause requires that redistributions in binary form reproduce the copyright
+notice, the list of conditions and the disclaimer in the documentation or in other
+materials provided with the distribution. This file and the
+`THIRD-PARTY-LICENSES/` directory satisfy that requirement.

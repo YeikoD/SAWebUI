@@ -1,157 +1,158 @@
 # SAWebUI
 
-**Runtime de interfaces web para GTA San Andreas.** Renderiza HTML/CSS/JS dentro del juego usando
-CEF (Chromium Embedded Framework) en modo OSR, y expone una API pública para que cualquier mod
-controle UIs, eventos y estado **sin saber nada de CEF, D3D9 ni Win32**.
+**Web UI runtime for GTA San Andreas.** Renders HTML/CSS/JS inside the game using
+CEF (Chromium Embedded Framework) in OSR mode, and exposes a public API so any mod can
+drive UIs, events and state **without knowing anything about CEF, D3D9 or Win32**.
 
-La UI es HTML normal: se edita y se recarga, no se compila.
+The UI is plain HTML: it is edited and reloaded, not compiled.
 
 ```text
-HTML/CSS/JS  →  CEF OSR  →  OnPaint()  →  buffer BGRA  →  RwRaster/RwTexture  →  GTA (D3D9)
+HTML/CSS/JS  →  CEF OSR  →  OnPaint()  →  BGRA buffer  →  RwRaster/RwTexture  →  GTA (D3D9)
 ```
 
 ---
 
-## Índice
+## Contents
 
-| Sección | Qué cubre |
+| Section | What it covers |
 |---|---|
-| [Qué es](#qué-es) | Alcance y pipelines |
-| [Contenido del repo](#contenido-del-repo) | Qué hay en cada carpeta |
-| [Instalación](#instalación) | Dónde va cada archivo y el paso obligatorio de CLEO |
-| [Configuración](#configuración-sawebuiini) | `SAWebUI.ini` |
-| [Uso rápido](#uso-rápido) | Mod CLEO ↔ página web, mínimo y funcional |
-| [Referencia de API](#referencia-de-api) | 9 exports C, 7 comandos CLEO, facade JS, `window.SAWeb` |
-| [Eventos](#eventos) | Formato de nombres y payloads |
-| [Ciclo de vida](#ciclo-de-vida-de-una-ui) | Estados y transiciones |
-| [Input y cursor](#input-y-cursor) | Modo Game/Web, foco, modos de cursor |
-| [Reglas visuales](#reglas-visuales) | Cómo se ve bien una UI dentro del juego |
-| [Multi-UI](#multi-ui) | Varias páginas a la vez |
-| [Depuración](#depuración) | Logs, líneas clave, cache |
-| [Límites conocidos](#límites-conocidos) | Lo que trunca y lo que desborda |
-| [Anti-patrones](#anti-patrones) | Lo que no hay que hacer |
-| [Alcance](#alcance-runtime-no-framework-de-gameplay) | Qué NO es este proyecto |
+| [What it is](#what-it-is) | Scope and pipelines |
+| [Repo contents](#repo-contents) | What is in each folder |
+| [Installation](#installation) | Where each file goes and the mandatory CLEO step |
+| [Configuration](#configuration-sawebuiini) | `SAWebUI.ini` |
+| [Quick start](#quick-start) | CLEO mod ↔ web page, minimal and working |
+| [API reference](#api-reference) | 9 C exports, 7 CLEO commands, JS facade, `window.SAWeb` |
+| [Events](#events) | Naming format and payloads |
+| [Lifecycle](#ui-lifecycle) | States and transitions |
+| [Input and cursor](#input-and-cursor) | Game/Web mode, focus, cursor modes |
+| [Visual rules](#visual-rules) | How a UI looks good inside the game |
+| [Multi-UI](#multi-ui) | Several pages at once |
+| [Debugging](#debugging) | Logs, key lines, cache |
+| [Known limits](#known-limits) | What gets truncated and what overflows |
+| [Anti-patterns](#anti-patterns) | What not to do |
+| [Scope](#scope-runtime-not-a-gameplay-framework) | What this project is NOT |
 
 ---
 
-## Qué es
+## What it is
 
-`SAWebUI.SA.asi` es un **runtime de UI web**, no un framework de juego. No sabe qué es `money`,
-`inventory`, `weapon` o `mission`, y no debe aprenderlo.
+`SAWebUI.SA.asi` is a **web UI runtime**, not a game framework. It does not know what `money`,
+`inventory`, `weapon` or `mission` are, and it should not learn.
 
-SAWeb se ocupa de:
+SAWeb takes care of:
 
-- CEF OSR (crear/destruir browser, cargar HTML, renderizar)
-- input y hit-test
-- cursor y foco de teclado
-- mensajería JS ↔ nativo
-- puente a RenderWare / D3D9
+- CEF OSR (create/destroy browser, load HTML, render)
+- input and hit-testing
+- cursor and keyboard focus
+- JS ↔ native messaging
+- the RenderWare / D3D9 bridge
 
-Todo lo de dominio (qué eventos existen, qué significan, cómo se rutean) es del mod que lo usa.
-La única frontera es:
+Everything domain-specific (which events exist, what they mean, how they are routed) belongs to
+the mod that uses it. The only boundary is:
 
 ```text
 mod  ──►  SAWeb.ui.send()  /  window.SAWeb.receive()  ◄──  mod
 ```
 
-### Pipeline de input
+### Input pipeline
 
 ```text
-Windows → WndProc de SAWeb → hit-test → mapeo de coords → CEF → DOM (<button>, <input>, …)
+Windows → SAWeb WndProc → hit-test → coordinate mapping → CEF → DOM (<button>, <input>, …)
 ```
 
-### Eventos, en ambos sentidos
+### Events, in both directions
 
 ```text
-HTML  →  window.SAWeb.emit()  →  CefMessageRouter  →  cola de la ASI  →  SAWeb.cleo  →  TriggerEvent  →  mod
-mod   →  SAWeb.ui.send()      →  cola / ExecuteJS   →  window.SAWeb.receive()  →  HTML
+HTML  →  window.SAWeb.emit()  →  CefMessageRouter  →  ASI queue  →  SAWeb.cleo  →  TriggerEvent  →  mod
+mod   →  SAWeb.ui.send()      →  queue / ExecuteJS   →  window.SAWeb.receive()  →  HTML
 ```
 
-### Decisiones de diseño que explican el comportamiento
+### Design decisions that explain the behaviour
 
-- **No se usa D3D9 directo** (`DrawPrimitiveUP`): produjo corrupción visual y crasheos. Todo overlay
-  va por `CSprite2d::DrawTxRect` sobre una textura de RenderWare.
-- **La transparencia es de CSS, no de C++**: el raster usa `rwRASTERFORMAT8888` y `DrawTxRect`
-  honra el alpha por píxel aunque el vertex color sea opaco. `background: transparent` alcanza.
-- **El Plugin-SDK no tiene evento de input** para SA: el subclass del WndProc es la única vía.
-- **Toda llamada a CEF se postea al UI thread** (`CefPostTask`); nunca desde el hilo del juego.
-- **Cerrar una UI no destruye el runtime**: el browser queda vivo y oculto, listo para reabrirse.
+- **D3D9 is not used directly** (`DrawPrimitiveUP`): it caused visual corruption and crashes. Every
+  overlay goes through `CSprite2d::DrawTxRect` on a RenderWare texture.
+- **Transparency comes from CSS, not C++**: the raster uses `rwRASTERFORMAT8888` and `DrawTxRect`
+  honours per-pixel alpha even when the vertex color is opaque. `background: transparent` is enough.
+- **The Plugin-SDK has no input event** for SA: subclassing the WndProc is the only way.
+- **Every CEF call is posted to the UI thread** (`CefPostTask`); never from the game thread.
+- **Closing a UI does not destroy the runtime**: the browser stays alive and hidden, ready to be
+  reopened.
 
 ---
 
-## Contenido del repo
+## Repo contents
 
-Este repo es el **mod ya compilado e instalado**, tal cual vive en
-`<GTA SA>\modloader\SAWebUI\`. El proyecto C++ que lo produce vive aparte (ver
-[Nota sobre el código fuente](#nota-sobre-el-código-fuente)).
+This repo is **the mod already compiled and installed**, exactly as it lives in
+`<GTA SA>\modloader\SAWebUI\`. The C++ project that produces it lives elsewhere (see
+[Note about the source code](#note-about-the-source-code)).
 
 ```text
 SAWebUI/
 ├─ SAWebUI.SA.asi            runtime (CEF OSR + render + input + API)      1.1 MB
-├─ SAWebUICefHelper.exe      proceso helper (renderer de CEF) + puente JS  630 KB
-├─ SAWebUICefCache/          caché de CEF (regenerable)
-├─ SAWebUI.ini               configuración (WebRoot, Index)
-├─ SAWebUICef.log            log del runtime
-├─ web\                      la UI — editable sin recompilar
+├─ SAWebUICefHelper.exe      helper process (CEF renderer) + JS bridge     630 KB
+├─ SAWebUICefCache/          CEF cache (regenerable)
+├─ SAWebUI.ini               configuration (WebRoot, Index)
+├─ SAWebUICef.log            runtime log
+├─ web\                      the UI — editable without recompiling
 │  ├─ index.html
 │  ├─ style.css
-│  ├─ app.js                 guía interactiva para modders + demo
+│  ├─ app.js                 interactive guide for modders + demo
 │  └─ assets\
 └─ cleo\
    ├─ SAWebUI\
-   │  ├─ SAWeb.js            facade JS para los mods (API v1)
-   │  ├─ sa-commands.json    declaración de los 7 comandos para sa.json
-   │  └─ sa-commands.txt     paso a paso de esa instalación
+   │  ├─ SAWeb.js            JS facade for mods (API v1)
+   │  ├─ sa-commands.json    declaration of the 7 commands for sa.json
+   │  └─ sa-commands.txt     step by step for that installation
    └─ cleo_plugins\
-      └─ SAWeb.cleo          plugin CLEO (7 comandos + OnAfterScripts)
+      └─ SAWeb.cleo          CLEO plugin (7 commands + OnAfterScripts)
 ```
 
-> **Los dos loaders no se comportan igual.** El `.cleo` sí se carga desde
-> `modloader\SAWebUI\cleo\cleo_plugins\`, pero lo carga **ModLoader**, no CLEO — no aparece en la
-> lista de plugins de `cleo_redux.log`, pero sus comandos sí se registran. Los `.js` **no** se cargan
-> desde ahí: el script loader de CLEO Redux solo escanea la raíz de `cleo\`. El facade se importa por
-> **ruta relativa** desde scripts ubicados en esa raíz.
+> **The two loaders do not behave the same.** The `.cleo` *is* loaded from
+> `modloader\SAWebUI\cleo\cleo_plugins\`, but **ModLoader** loads it, not CLEO — it does not show up
+> in the plugin list of `cleo_redux.log`, yet its commands do get registered. The `.js` files are
+> **not** loaded from there: the CLEO Redux script loader only scans the root of `cleo\`. The facade is
+> imported by **relative path** from scripts located in that root.
 
-Desinstalar es borrar `modloader\SAWebUI\`.
-
----
-
-## Requisitos
-
-- GTA San Andreas con ASI Loader
-- CLEO Redux v7 (para el plugin y el facade JS)
-- ModLoader (para que cargue el `.cleo` de `cleo_plugins\`)
+Uninstalling means deleting `modloader\SAWebUI\`.
 
 ---
 
-## Instalación
+## Requirements
 
-1. Copiar el contenido de este repo a `<GTA SA>\modloader\SAWebUI\`.
-2. **Declarar los 7 comandos en CLEO** — este paso es **obligatorio**:
-
-   Abrir `<GTA SA>\cleo\.config\sa.json` y copiar el objeto con `"name": "saweb"` de
-   `cleo\SAWebUI\sa-commands.json` dentro del array `"extensions"`, al final.
-
-   CUIDADO con las comas: si `"saweb"` es el último elemento, el anterior lleva coma y `"saweb"` no;
-   si hay más elementos después, `"saweb"` lleva coma.
-
-   Sin esto CLEO no registra los comandos y `native()` tira
-   `Command with the name SAWEB_… not found`. No es metadata decorativa.
-
-   CLEO Redux solo lee `cleo\.config\` de la **raíz del juego**: se probó una `sa.json` dentro de
-   `modloader\SAWebUI\cleo\.config\` y los 7 commands quedaron sin declarar. Por eso el mod trae el
-   archivo para copiar a mano.
-
-3. Verificar al arrancar: `cleo_redux.log` debe mostrar `Registering command SAWEB_…` **siete** veces
-   y ningún `unknown command SAWEB`. Una actualización de CLEO Redux puede pisar `sa.json` y sacar
-   la sección; si pasa, volver a copiarla.
+- GTA San Andreas with an ASI Loader
+- CLEO Redux v7 (for the plugin and the JS facade)
+- ModLoader (so it loads the `.cleo` from `cleo_plugins\`)
 
 ---
 
-## Configuración (`SAWebUI.ini`)
+## Installation
 
-Solo dos claves, leídas al arrancar el juego. Un INI ausente es el primer arranque normal; si algo
-falta o está mal, el runtime usa el default y lo anota en `SAWebUICef.log`.
+1. Copy the contents of this repo to `<GTA SA>\modloader\SAWebUI\`.
+2. **Declare the 7 commands in CLEO** — this step is **mandatory**:
+
+   Open `<GTA SA>\cleo\.config\sa.json` and copy the object with `"name": "saweb"` from
+   `cleo\SAWebUI\sa-commands.json` into the `"extensions"` array, at the end.
+
+   WATCH the commas: if `"saweb"` is the last element, the previous one keeps the comma and
+   `"saweb"` does not; if there are elements after it, `"saweb"` keeps the comma.
+
+   Without this, CLEO does not register the commands and `native()` throws
+   `Command with the name SAWEB_… not found`. It is not decorative metadata.
+
+   CLEO Redux only reads `cleo\.config\` from the **game root**: a `sa.json` inside
+   `modloader\SAWebUI\cleo\.config\` was tried and the 7 commands stayed undeclared. That is why the
+   mod ships the file to be copied by hand.
+
+3. Verify on startup: `cleo_redux.log` must show `Registering command SAWEB_…` **seven** times and
+   no `unknown command SAWEB`. A CLEO Redux update may overwrite `sa.json` and drop the section; if
+   that happens, copy it again.
+
+---
+
+## Configuration (`SAWebUI.ini`)
+
+Only two keys, read when the game starts. A missing INI is the normal first run; if something is
+missing or wrong, the runtime uses the default and logs it in `SAWebUICef.log`.
 
 ```ini
 [SAWeb]
@@ -159,27 +160,27 @@ WebRoot = modloader\SAWebUI\web
 Index   = index.html
 ```
 
-| Clave | Formas admitidas | Default |
+| Key | Accepted forms | Default |
 |---|---|---|
-| `WebRoot` | `modloader\SAWebUI\web` (relativa al juego) · `\carpeta` (raíz del juego) · `D:\carpeta` (absoluta) | `modloader\SAWebUI\web` |
-| `Index` | Página dentro de `WebRoot`. Debe ser relativa. | `index.html` |
+| `WebRoot` | `modloader\SAWebUI\web` (relative to the game) · `\folder` (game root) · `D:\folder` (absolute) | `modloader\SAWebUI\web` |
+| `Index` | Page inside `WebRoot`. Must be relative. | `index.html` |
 
-Mover `web\` es **editar el INI**, no recompilar. Y para apuntar una UI a un lugar puntual tampoco
-hace falta tocar la config:
+Moving `web\` means **editing the INI**, not recompiling. And to point a UI at a specific place you
+don't have to touch the config either:
 
 ```js
-SAWeb.ui.register("panel", "C:/ruta/a/cualquier/index.html");
+SAWeb.ui.register("panel", "C:/path/to/any/index.html");
 ```
 
 ---
 
-## Uso rápido
+## Quick start
 
-### Desde un mod (CLEO JS)
+### From a mod (CLEO JS)
 
-El import es una **ruta relativa**, no un nombre de paquete, y el script que importa tiene que estar
-en la **raíz de `cleo\`** (el script loader solo escanea ahí; scripts en subcarpetas no se ejecutan
-solos, los carga otro boot script y entonces el `../` cuenta desde el archivo que los importa).
+The import is a **relative path**, not a package name, and the script doing the importing must be in
+the **root of `cleo\`** (the script loader only scans there; scripts in subfolders do not run on their
+own, another boot script loads them and then the `../` counts from the file doing the importing).
 
 ```js
 import SAWeb, { on } from "../modloader/SAWebUI/cleo/SAWebUI/SAWeb.js";
@@ -190,49 +191,49 @@ import { KeyCode } from "../.config/enums";
     SAWeb.ui.send("panel", "refresh", { from: "cleo" });
   });
 
-  on("panel", "weapon:buy", (data) => log("compró " + data.id));
+  on("panel", "weapon:buy", (data) => log("bought " + data.id));
 
-  log("registro: " + SAWeb.ui.register("panel", "index.html"));
+  log("registered: " + SAWeb.ui.register("panel", "index.html"));
   await asyncWait(200);
-  log("abro: " + SAWeb.ui.open("panel"));
+  log("opened: " + SAWeb.ui.open("panel"));
 
   while (true) {
     await asyncWait(0);
     if (Pad.IsKeyJustPressed(KeyCode.J)) {
-      log("toggle: " + (SAWeb.ui.toggle("panel") ? "ABIERTO" : "CERRADO"));
+      log("toggle: " + (SAWeb.ui.toggle("panel") ? "OPEN" : "CLOSED"));
     }
   }
 })().catch((e) => log("error: " + e));
 ```
 
-- `open()` sobre un id no registrado lo registra solo con `index.html`.
-- **Los listeners solo funcionan en contexto async** (dentro de una `async`, con `await asyncWait()`),
-  nunca con `wait()` bloqueante.
-- `on()` siempre devuelve una función de baja, en ambos lados del puente. La segunda llamada
-  devuelve `false`.
+- `open()` on an unregistered id registers it on its own with `index.html`.
+- **Listeners only work in an async context** (inside an `async`, with `await asyncWait()`), never
+  with blocking `wait()`.
+- `on()` always returns an unsubscribe function, on both sides of the bridge. The second call returns
+  `false`.
 
-### Desde la página (HTML)
+### From the page (HTML)
 
-**No definir `window.SAWeb` a mano.** El shim es el dueño del namespace y se instala
-sincrónicamente antes de que corra cualquier script de la página, así que cualquier stub se pierde.
+**Do not define `window.SAWeb` by hand.** The shim owns the namespace and installs itself
+synchronously before any page script runs, so any stub is lost.
 
 ```html
 <script>
   if (window.SAWeb && window.SAWeb.hasBridge) {
-    // HTML → nativo
-    document.getElementById("comprar").addEventListener("click", () => {
-      window.SAWeb.emit("weapon:buy", { id: 1, precio: 500 });
+    // HTML → native
+    document.getElementById("buy").addEventListener("click", () => {
+      window.SAWeb.emit("weapon:buy", { id: 1, price: 500 });
     });
 
-    // nativo → HTML
+    // native → HTML
     const off = window.SAWeb.on("refresh", (data) => {
-      document.getElementById("estado").textContent = JSON.stringify(data);
+      document.getElementById("state").textContent = JSON.stringify(data);
     });
 
-    // lógica de 1 Hz (el repaint va a 60 fps por su cuenta)
+    // 1 Hz logic (repaint already runs at 60 fps on its own)
     window.SAWeb.tick = () => {
-      document.getElementById("reloj").textContent =
-        new Date().toLocaleTimeString("es-AR", { hour12: false });
+      document.getElementById("clock").textContent =
+        new Date().toLocaleTimeString("en-US", { hour12: false });
     };
 
     window.SAWeb.emit("ready", { ui: "main" });
@@ -240,24 +241,25 @@ sincrónicamente antes de que corra cualquier script de la página, así que cua
 </script>
 ```
 
-`window.SAWeb` lo inyecta el proceso renderer (`saweb::RenderBridgeApp`, dentro de
-`SAWebUICefHelper.exe`) vía `CefMessageRouter` con `CefV8Context::Eval` en `OnContextCreated`.
-No hay que incluir ningún script.
+`window.SAWeb` is injected by the renderer process (`saweb::RenderBridgeApp`, inside
+`SAWebUICefHelper.exe`) via `CefMessageRouter` with `CefV8Context::Eval` on `OnContextCreated`.
+There is no script to include.
 
-> **El helper es parte del puente**: si el proceso renderer no recibe su `CefRenderProcessHandler`,
-> `window.SAWeb` nunca se inyecta y la página queda muda sin explicar por qué.
+> **The helper is part of the bridge**: if the renderer process does not receive its
+> `CefRenderProcessHandler`, `window.SAWeb` is never injected and the page goes mute with no
+> explanation.
 
 ---
 
-## Referencia de API
+## API reference
 
-`SAWEB_API_VERSION = 1`, **congelada**. Los nombres, firmas y semántica no cambian sin subir la
-versión. El freeze está mecanizado por un test que falla si aparece un export, cambia una firma, el
-plugin deja de resolver alguno de los que exporta la ASI, o se registra un comando nuevo.
+`SAWEB_API_VERSION = 1`, **frozen**. Names, signatures and semantics do not change without bumping
+the version. The freeze is enforced by a test that fails if an export appears, a signature changes,
+the plugin stops resolving one of the ones the ASI exports, or a new command gets registered.
 
-La configuración interna (`SAWebUI.ini`) **no** forma parte de la API.
+The internal configuration (`SAWebUI.ini`) is **not** part of the API.
 
-### 9 exports C (`SAWebApi.h`)
+### 9 C exports (`SAWebApi.h`)
 
 ```c
 unsigned int version = SAWeb_GetApiVersion();     // 1
@@ -265,38 +267,38 @@ SAWeb_RegisterUi("panel", "index.html");
 SAWeb_OpenUi("panel");
 int isOpen = SAWeb_IsUiOpen("panel");
 SAWeb_CloseUi("panel");
-SAWeb_ToggleUi("panel");                          // 1 = quedó abierta
-SAWeb_SendEvent("panel", "refresh", "{\"a\":1}"); // dataJson: JSON o string
-SAWeb_SetCursorVisible(SAWEB_CURSOR_AUTO);        // -1 auto, 0 oculto, 1 visible
+SAWeb_ToggleUi("panel");                          // 1 = ended up open
+SAWeb_SendEvent("panel", "refresh", "{\"a\":1}"); // dataJson: JSON or string
+SAWeb_SetCursorVisible(SAWEB_CURSOR_AUTO);        // -1 auto, 0 hidden, 1 visible
 ```
 
-`SAWeb_PollEvent` es **interna**: la usa `SAWeb.cleo` para drenar la cola de eventos y no forma parte
-de la API para mods.
+`SAWeb_PollEvent` is **internal**: `SAWeb.cleo` uses it to drain the event queue and it is not part
+of the API for mods.
 
-Resolución dinámica (lo que hace el plugin CLEO):
+Dynamic resolution (what the CLEO plugin does):
 
 ```cpp
 HMODULE mod = GetModuleHandleA("SAWebUI.SA.asi");
 auto open = reinterpret_cast<int(*)(const char*)>(GetProcAddress(mod, "SAWeb_OpenUi"));
 ```
 
-El plugin verifica `SAWeb_GetApiVersion() == 1`; si no coincide, no registra ningún comando.
+The plugin checks `SAWeb_GetApiVersion() == 1`; if it does not match, it registers no command.
 
-### 7 comandos CLEO (`native(...)`)
+### 7 CLEO commands (`native(...)`)
 
-| Comando | Inputs | Output | Descripción |
+| Command | Inputs | Output | Description |
 |---|---|---|---|
-| `SAWEB_REGISTER_UI` | `uiId`, `url` | `result` | Registra una UI |
-| `SAWEB_OPEN_UI` | `uiId` | `result` | Abre la UI (registra sola si no existe) |
-| `SAWEB_CLOSE_UI` | `uiId` | `result` | Cierra la UI (no la destruye) |
-| `SAWEB_TOGGLE_UI` | `uiId` | `result` | Alterna; `1` = quedó abierta |
-| `SAWEB_IS_UI_OPEN` | `uiId` | `result` | `1` si está abierta |
-| `SAWEB_SEND_EVENT` | `uiId`, `eventName`, `dataJson` | `result` | Evento hacia el HTML |
-| `SAWEB_SET_CURSOR` | `mode` (`-1`/`0`/`1`) | `result` | Modo del cursor |
+| `SAWEB_REGISTER_UI` | `uiId`, `url` | `result` | Registers a UI |
+| `SAWEB_OPEN_UI` | `uiId` | `result` | Opens the UI (registers it if missing) |
+| `SAWEB_CLOSE_UI` | `uiId` | `result` | Closes the UI (does not destroy it) |
+| `SAWEB_TOGGLE_UI` | `uiId` | `result` | Toggles; `1` = ended up open |
+| `SAWEB_IS_UI_OPEN` | `uiId` | `result` | `1` if open |
+| `SAWEB_SEND_EVENT` | `uiId`, `eventName`, `dataJson` | `result` | Event towards the HTML |
+| `SAWEB_SET_CURSOR` | `mode` (`-1`/`0`/`1`) | `result` | Cursor mode |
 
-`result`: `1` = éxito, `0` = fallo. Los ids de opcodes son `E700`–`E706`.
+`result`: `1` = success, `0` = failure. The opcode ids are `E700`–`E706`.
 
-### Facade JS (`cleo\SAWebUI\SAWeb.js`)
+### JS facade (`cleo\SAWebUI\SAWeb.js`)
 
 ```js
 SAWeb.version;                       // 1
@@ -304,7 +306,7 @@ SAWeb.ui.register(uiId, url = "");
 SAWeb.ui.open(uiId);
 SAWeb.ui.close(uiId);
 SAWeb.ui.isOpen(uiId);               // boolean
-SAWeb.ui.toggle(uiId);               // boolean → true si quedó abierta
+SAWeb.ui.toggle(uiId);               // boolean → true if it ended up open
 SAWeb.ui.send(uiId, eventName, data = null);
 SAWeb.on(uiId, eventName, callback);
 SAWeb.onAny(uiId, callback);
@@ -312,129 +314,129 @@ SAWeb.setCursor(mode);
 SAWeb.CursorMode;                    // { AUTO: -1, HIDDEN: 0, VISIBLE: 1 }
 ```
 
-`onAny` recibe exactamente los mismos eventos que `on()`, pero con el **nombre pelado**
-(`"slider"`, `"weapon:buy"`) en lugar del nombre completo:
+`onAny` receives exactly the same events as `on()`, but with the **bare name**
+(`"slider"`, `"weapon:buy"`) instead of the full name:
 
 ```js
 const off = SAWeb.onAny("main", (event, data) => log(event + " -> " + JSON.stringify(data)));
 // "slider" -> { value: 73 }
 ```
 
-El callback de `on()` recibe el `data` ya parseado (si el payload era JSON) y como segundo argumento
-el valor crudo. El facade acepta las dos formas de payload que aparecen en distintas builds de CLEO
-Redux (payload directo y objeto de evento) para no tener que adivinar.
+The `on()` callback receives the `data` already parsed (if the payload was JSON) and as its second
+argument the raw value. The facade accepts both payload shapes that appear across CLEO Redux builds
+(direct payload and event object) so you do not have to guess.
 
-### Dentro del HTML (`window.SAWeb`)
+### Inside the HTML (`window.SAWeb`)
 
-| Miembro | Descripción |
+| Member | Description |
 |---|---|
-| `emit(name, data?)` | Manda un evento al nativo. Devuelve `true` si el router recibió el mensaje |
-| `on(name, fn)` | Suscribe un listener. Devuelve la función de baja |
-| `receive(name, data)` | Dispatch interno (lo llama `SAWeb.ui.send`). Devuelve cuántos listeners corrieron |
-| `tick()` | **La llama la ASI 1 vez por segundo** (solo si la página la define) |
-| `hasBridge` | `true` si el shim se inyectó correctamente |
+| `emit(name, data?)` | Sends an event to native. Returns `true` if the router received the message |
+| `on(name, fn)` | Subscribes a listener. Returns the unsubscribe function |
+| `receive(name, data)` | Internal dispatch (called by `SAWeb.ui.send`). Returns how many listeners ran |
+| `tick()` | **Called by the ASI once per second** (only if the page defines it) |
+| `hasBridge` | `true` if the shim injected correctly |
 
 ---
 
-## Eventos
+## Events
 
 ```text
 saweb:<uiId>:<eventName>
 ```
 
-- `<eventName>` **no puede contener `:`** (es el separador). Lo mismo para `uiId`.
-- El `data` es JSON serializado. Del lado CEF llega como `CefValue`; del lado CLEO llega parseado si
-  es JSON válido, o como string si no lo era.
+- `<eventName>` **cannot contain `:`** (it is the separator). Same for `uiId`.
+- The `data` is serialized JSON. On the CEF side it arrives as a `CefValue`; on the CLEO side it
+  arrives parsed if it is valid JSON, or as a string if it was not.
 
-Ejemplo: el HTML emite `window.SAWeb.emit("button", { value: 42 })` en la UI `main` → el mod escucha
-`on("main", "button", cb)`.
+Example: the HTML emits `window.SAWeb.emit("button", { value: 42 })` on the `main` UI → the mod
+listens with `on("main", "button", cb)`.
 
-El agregado de `onAny()` lo genera el plugin CLEO **después** de que el evento sale de la cola de la
-ASI, así que no la carga. CLEO Redux hace coincidencia exacta de nombres y no tiene wildcard, así que
-el agregado no puede venir del renderer: la ruta CEF→ASI y el protocolo público quedan intactos.
+The `onAny()` aggregate is generated by the CLEO plugin **after** the event leaves the ASI queue, so
+it does not load it. CLEO Redux does exact name matching and has no wildcards, so the aggregate
+cannot come from the renderer: the CEF→ASI route and the public protocol stay untouched.
 
 ---
 
-## Ciclo de vida de una UI
+## UI lifecycle
 
 ```text
 register ──► Closed ──open──► Opening ──(OnAfterCreated)──► Open
                 ▲                                            │
                 └────────────── close ◄── Closing ◄──────────┘
 
-Open ──(crash del renderer)──► Crashed ──open──► Opening (browser nuevo)
+Open ──(renderer crash)──► Crashed ──open──► Opening (new browser)
 ```
 
-- `open()` sobre una UI ya abierta es **no-op**.
-- `close()` no destruye nada: el browser queda oculto y listo. El frame pump sigue vivo, solo deja de
-  producir frames.
-- `open()` después de un crash crea un browser nuevo (nunca se reutiliza el cadáver).
-- Al abrir se resetea el estado de input (posición previa, rueda acumulada) y el webview toma foco.
+- `open()` on an already open UI is a **no-op**.
+- `close()` destroys nothing: the browser stays hidden and ready. The frame pump stays alive, it just
+  stops producing frames.
+- `open()` after a crash creates a new browser (the corpse is never reused).
+- On open, the input state resets (previous position, accumulated wheel) and the webview takes focus.
 
 ---
 
-## Input y cursor
+## Input and cursor
 
-Con alguna UI abierta, el input se enruta según dónde esté el puntero:
+With any UI open, input is routed depending on where the pointer is:
 
-| Puntero | Destino | Teclado |
+| Pointer | Destination | Keyboard |
 |---|---|---|
-| Dentro de una UI abierta | CEF → DOM | Al webview con foco (el juego no lo ve) |
-| Fuera de la UI | GTA | Al juego |
+| Inside an open UI | CEF → DOM | To the focused webview (the game does not see it) |
+| Outside the UI | GTA | To the game |
 
-Con todas las UIs cerradas, todo va al juego y el cursor se oculta.
+With all UIs closed, everything goes to the game and the cursor is hidden.
 
-| Gesto | Resultado |
+| Gesture | Result |
 |---|---|
-| Mover el mouse | `mousemove` en el DOM si el puntero está sobre la UI |
-| Click izq./der. | `click` / `contextmenu` |
-| Arrastrar | `mousedown` + `mousemove` con botón → sirve para `<input type="range">` |
-| Rueda | `wheel` |
-| Teclado | Va al webview **si tiene el foco** (hace click en la UI primero) |
+| Moving the mouse | `mousemove` in the DOM if the pointer is over the UI |
+| Left/right click | `click` / `contextmenu` |
+| Drag | `mousedown` + `mousemove` with the button held → useful for `<input type="range">` |
+| Wheel | `wheel` |
+| Keyboard | Goes to the webview **if it has focus** (click the UI first) |
 
-El foco del teclado se toma al hacer click dentro de la UI y se suelta al clickear fuera o al cerrarla.
-Con el foco activo las teclas **no** llegan al juego, para que escribir en un `<input>` no mueva a CJ.
+Keyboard focus is taken by clicking inside the UI and released by clicking outside or closing it.
+With focus active, keys **do not** reach the game, so typing in an `<input>` does not move CJ.
 
-### Modo de cursor
+### Cursor mode
 
-**El default es `HIDDEN`, y el teclado va atado a lo mismo.** Abrir una UI **no** saca el puntero de
-la pantalla **ni** se queda con el teclado: se puede seguir jugando con el menú abierto. El click
-igual funciona, porque el mouse va por el WndProc hook y no por el cursor del sistema.
+**The default is `HIDDEN`, and the keyboard is tied to the same thing.** Opening a UI **does not**
+take the pointer off screen **nor** keep the keyboard: you can keep playing with the panel open.
+Clicking still works, because the mouse goes through the WndProc hook and not through the system
+cursor.
 
 ```js
-SAWeb.setCursor(SAWeb.CursorMode.VISIBLE);   //  1: cursor + teclado para la UI
-SAWeb.setCursor(SAWeb.CursorMode.HIDDEN);    //  0: cursor oculto y teclado para el juego (default)
-SAWeb.setCursor(SAWeb.CursorMode.AUTO);      // -1: lo mismo, pero solo si hay alguna UI abierta
+SAWeb.setCursor(SAWeb.CursorMode.VISIBLE);   //  1: cursor + keyboard for the UI
+SAWeb.setCursor(SAWeb.CursorMode.HIDDEN);    //  0: cursor hidden and keyboard for the game (default)
+SAWeb.setCursor(SAWeb.CursorMode.AUTO);      // -1: same, but only if some UI is open
 ```
 
-Son **un** interruptor, no dos: el modo del cursor decide también si la UI recibe teclado. No está
-atado al foco del mouse a propósito — el foco se recalcula cada vez que el puntero pasa por encima
-de la UI, así que si el gate fuera el foco el teclado se prendería y apagaría solo mientras movemos
-el mouse.
+They are **one** switch, not two: the cursor mode also decides whether the UI receives the keyboard.
+It is deliberately not tied to mouse focus — focus is recomputed every time the pointer passes over
+the UI, so if the gate were focus, the keyboard would turn itself on and off while moving the mouse.
 
-**Nada de esto se maneja desde la página**: `emit()` solo llega a la cola de eventos y los comandos
-del puente son de CLEO. Si una página necesita prenderlo, tiene que exponer un comando propio y que
-el script lo llame. (La UI de ejemplo de este repo anuncia un atajo F12 para alternar el cursor.)
+**None of this is handled from the page**: `emit()` only reaches the event queue and the bridge
+commands belong to CLEO. If a page needs to turn it on, it has to expose its own command and have
+the script call it. (The example UI in this repo advertises an F12 shortcut to toggle the cursor.)
 
-Comprobación en el log: con el default tiene que dar
-`SAWeb cursor: flips=0 (openUis=1 mode=0 keys=0)`. Con el default anterior (`AUTO`) el cursor salía
-siempre que hubiera una UI abierta y, como el juego lo oculta cada frame, había que pelearlo frame a
-frame — se ve en el log como `flips` altos.
+Check in the log: with the default it must report
+`SAWeb cursor: flips=0 (openUis=1 mode=0 keys=0)`. With the previous default (`AUTO`) the cursor
+always came out whenever a UI was open and, since the game hides it every frame, you had to fight it
+frame by frame — visible in the log as high `flips`.
 
 ---
 
-## Reglas visuales
+## Visual rules
 
-- `background: transparent` en `html` y `body` para ver el juego detrás. **Esto es solo CSS: no hace
-  falta tocar la ASI.** Un panel con `rgba(...)` sale semitransparente solo.
-- Paneles compactos con bordes oscuros; evitar Material Design puro.
-- Tipografías `Tahoma` / `Arial` / estilo GTA clásico.
-- Colores oscuros con acentos (naranja/ámbar/gris), bordes negros.
-- La página se estira a la resolución del juego: usar layouts fluidos (`flex`, `grid`, `%`, `rem`),
-  no anchos fijos en píxeles.
-- Evitar overlays que tapen todo el centro: el puntero fuera del panel vuelve a controlar a CJ.
-- Todo `<input>` dentro de un contenedor `flex` necesita `min-width: 0`. Sin eso el input usa su
-  ancho intrínseco (~20 caracteres) y se sale de la caja sin avisar.
+- `background: transparent` on `html` and `body` to see the game behind. **This is CSS only: there
+  is no need to touch the ASI.** A panel with `rgba(...)` comes out semi-transparent on its own.
+- Compact panels with dark borders; avoid plain Material Design.
+- `Tahoma` / `Arial` fonts, classic GTA look.
+- Dark colors with accents (orange/amber/grey), black borders.
+- The page stretches to the game resolution: use fluid layouts (`flex`, `grid`, `%`, `rem`), not
+  fixed pixel widths.
+- Avoid overlays that cover the whole center: the pointer outside the panel controls CJ again.
+- Every `<input>` inside a `flex` container needs `min-width: 0`. Without it the input uses its
+  intrinsic width (~20 characters) and overflows the box without warning.
 
 ```css
 html, body { background: transparent; margin: 0; height: 100%; overflow: hidden; }
@@ -445,15 +447,15 @@ html, body { background: transparent; margin: 0; height: 100%; overflow: hidden;
 }
 ```
 
-> Para comprobar la transparencia sin compilar nada: poné `background: transparent` en una página
-> cualquiera. Si se ve el juego, el alpha anda. Esa prueba de 30 segundos evita derivar el mecanismo
-> desde el C++.
+> To test transparency without compiling anything: put `background: transparent` on any page. If you
+> see the game, alpha works. That 30-second test saves you from reverse-engineering the mechanism
+> from the C++.
 
 ---
 
 ## Multi-UI
 
-Cada página tiene su id, su browser, su textura y su rect:
+Each page has its own id, browser, texture and rect:
 
 ```js
 SAWeb.ui.register("inventory", "inventory/index.html");
@@ -461,116 +463,117 @@ SAWeb.ui.register("market", "market/index.html");
 SAWeb.ui.open("inventory");
 ```
 
-Cada página vive en su subcarpeta dentro de `modloader\SAWebUI\web\`. La ruta es relativa a esa
-carpeta (la define el `WebRoot` del INI). Hoy las UIs se dibujan a pantalla completa y se superponen
-en orden de registro: **la última dibujada gana el hit-test del mouse**.
+Each page lives in its own subfolder inside `modloader\SAWebUI\web\`. The path is relative to that
+folder (defined by the INI's `WebRoot`). Today UIs are drawn full screen and overlap in registration
+order: **the last one drawn wins the mouse hit-test**.
 
 ---
 
-## Depuración
+## Debugging
 
-| Log | Qué mira |
+| Log | What to look at |
 |---|---|
-| `<GTA SA>\modloader\SAWebUI\SAWebUICef.log` | Runtime: CEF, render, input, cursor, puente |
-| `<GTA SA>\cleo_redux.log` | Scripts: carga, registro de comandos, eventos |
+| `<GTA SA>\modloader\SAWebUI\SAWebUICef.log` | Runtime: CEF, render, input, cursor, bridge |
+| `<GTA SA>\cleo_redux.log` | Scripts: load, command registration, events |
 
-Orden de comprobación cuando algo no funciona:
+Check order when something does not work:
 
-1. `SAWebUICef.log` — ¿`SAWeb window hook installed`? ¿`SAWeb input first event …`? ¿`tick=alive`?
-2. `cleo_redux.log` — ¿se cargó el script? ¿se registró el evento `ready`?
-3. En la página, `window.SAWeb.hasBridge` para descartar un shim no inyectado.
-4. Caché de CEF si los cambios de HTML no aparecen.
+1. `SAWebUICef.log` — `SAWeb window hook installed`? `SAWeb input first event …`? `tick=alive`?
+2. `cleo_redux.log` — did the script load? was the `ready` event registered?
+3. On the page, `window.SAWeb.hasBridge` to rule out a shim that was not injected.
+4. CEF cache if HTML changes do not show up.
 
-### Líneas clave del log
+### Key log lines
 
-| Línea | Significado |
+| Line | Meaning |
 |---|---|
-| `SAWeb bridge hello: ui=main {"v":2,"q":true,"e":true,"m":true}` | El shim se anunció. `q` = el router llegó al renderer; `e` = instalado sincrónicamente; `m` = marcadores OK |
-| `SAWeb bridge ready: ui=main gen=1` | El puente pasó a listo. `gen` cuenta **contextos de renderer**, no aperturas de UI |
-| `SAWeb bridge down: ui=main reason=ui-closed gen=1` | Dejó de estar listo. Motivos: `ui-closed`, `browser-closed`, `renderer-crash`, `renderer-terminated` |
-| `SAWeb window hook installed` | El WndProc quedó enganchado; sin esto no hay input |
-| `SAWeb input first event …` | Hit-test + mapeo funcionando |
-| `tick=alive` / `tick=stopped` | El frame pump está vivo o se detuvo (solo debería detenerse si muere el browser) |
-| `SAWeb emit: main:<event>` | Llegó un evento desde el HTML |
-| `SAWeb event queue overflow: … dropped=N` | Se perdieron eventos: el mod no está drenando la cola a tiempo |
-| `SAWeb bridge: ignored request …` | Request del renderer con prefijo desconocido; indica bug en el shim |
-| `SAWeb cursor hook: … showSlots=N` | Si `N=0`, el juego no oculta el cursor por IAT (no debería pasar) |
+| `SAWeb bridge hello: ui=main {"v":2,"q":true,"e":true,"m":true}` | The shim announced itself. `q` = the router reached the renderer; `e` = installed synchronously; `m` = markers OK |
+| `SAWeb bridge ready: ui=main gen=1` | The bridge became ready. `gen` counts **renderer contexts**, not UI opens |
+| `SAWeb bridge down: ui=main reason=ui-closed gen=1` | Stopped being ready. Reasons: `ui-closed`, `browser-closed`, `renderer-crash`, `renderer-terminated` |
+| `SAWeb window hook installed` | The WndProc got hooked; without this there is no input |
+| `SAWeb input first event …` | Hit-test + mapping working |
+| `tick=alive` / `tick=stopped` | The frame pump is alive or stopped (it should only stop if the browser dies) |
+| `SAWeb emit: main:<event>` | An event arrived from the HTML |
+| `SAWeb event queue overflow: … dropped=N` | Events were lost: the mod is not draining the queue fast enough |
+| `SAWeb bridge: ignored request …` | Request from the renderer with an unknown prefix; indicates a bug in the shim |
+| `SAWeb cursor hook: … showSlots=N` | If `N=0`, the game is not hiding the cursor via IAT (should not happen) |
 
-### Cache de CEF
+### CEF cache
 
 ```powershell
 Remove-Item -Recurse -Force '<GTA SA>\modloader\SAWebUI\SAWebUICefCache'
 ```
 
-Cache-busting por URL (en el runtime, `gCefUrl`): `gCefUrl = ToFileUrl(gCefWebPath) + L"?v=2";`
+URL-based cache busting (in the runtime, `gCefUrl`): `gCefUrl = ToFileUrl(gCefWebPath) + L"?v=2";`
 
 ---
 
-## Límites conocidos
+## Known limits
 
-- `dataJson` de `SAWEB_SEND_EVENT` viaja como string de comando CLEO: **~255 caracteres útiles**.
-  `strncpy_s(..., _TRUNCATE)` **trunca en silencio** y corta el JSON por la mitad sin log ni código de
-  error.
-- `uiId` y `eventName` no deben contener `:`.
-- La cola de eventos del HTML a la ASI está acotada a **256** y descarta los más viejos si desborda.
-  Cada descarte queda registrado como
-  `SAWeb event queue overflow: last=<evento> size=256 dropped=N` (primera pérdida y luego cada 16).
-- El tamaño de vista de CEF se recalcula al cambiar la resolución y la textura se recrea.
-
----
-
-## Anti-patrones
-
-- **Definir `window.SAWeb` o stubs en la página**: el shim es el dueño y los reemplaza.
-- **`window.SAWeb.tick = tick` sin guardarlo**: si el shim no se inyectó eso tira `TypeError`, y si
-  está antes del bloque de init se come el render entero — la página queda muda sin decir por qué.
-  Va dentro de un `if (window.SAWeb)`.
-- **Poner un color de fondo opaco en `html`/`body`**: tapa el juego. No es que falte blending en la
-  ASI. Un gris opaco se ve bien en el editor y en el juego es una pantalla gris que esconde todo.
-- Depender de `setInterval` para el refresh principal: el runtime ya refresca a 60 fps; `tick` es
-  para lógica de 1 Hz, no para el repaint.
-- Emitir eventos en cada `mousemove` (inunda la cola de 256 y cada descarte queda logueado).
-- Asumir que el input funciona sin hacer click antes en la UI (el teclado necesita foco).
-- Poner scripts en subcarpetas de `cleo\`: no se ejecutan solos.
-- Usar D3D9 directo en la ASI: provoca corrupción visual; los overlays van por `CSprite2d`.
+- `dataJson` of `SAWEB_SEND_EVENT` travels as a CLEO command string: **~255 useful characters**.
+  `strncpy_s(..., _TRUNCATE)` **truncates silently** and cuts the JSON in half with no log and no
+  error code.
+- `uiId` and `eventName` must not contain `:`.
+- The HTML→ASI event queue is capped at **256** and discards the oldest ones on overflow. Every
+  discard is logged as
+  `SAWeb event queue overflow: last=<event> size=256 dropped=N` (first loss, then every 16).
+- The CEF view size is recomputed on resolution change and the texture is recreated.
 
 ---
 
-## Alcance: runtime, no framework de gameplay
+## Anti-patterns
 
-SAWeb es un runtime de UI web para GTA SA. No sabe qué es `money`, `inventory`, `weapon`, `mission`
-o `player`, y no debe aprenderlo.
-
-Los mods siguen viendo únicamente `SAWeb.ui.*` / `SAWeb.on` / `SAWeb.onAny` / `window.SAWeb`:
-nada de CEF.
-
-**Descartado a propósito:** cualquier API de dominio en SAWeb (dinero, inventario, armas) y un
-protocolo v2 con payloads grandes — eso vive en el mod, o el arreglo barato cuando aparezca la UI que
-lo sufre es loguear el truncamiento.
+- **Defining `window.SAWeb` or stubs on the page**: the shim owns it and replaces them.
+- **`window.SAWeb.tick = tick` without guarding it**: if the shim was not injected that throws
+  `TypeError`, and if it runs before the init block it eats the whole render — the page goes mute
+  without saying why. Put it inside an `if (window.SAWeb)`.
+- **Setting an opaque background color on `html`/`body`**: it hides the game. It is not that the ASI
+  lacks blending. An opaque grey looks fine in the editor and in the game is a grey screen hiding
+  everything.
+- Relying on `setInterval` for the main refresh: the runtime already refreshes at 60 fps; `tick` is
+  for 1 Hz logic, not for repaint.
+- Emitting events on every `mousemove` (floods the 256 queue and every discard gets logged).
+- Assuming input works without clicking the UI first (the keyboard needs focus).
+- Putting scripts in `cleo\` subfolders: they do not run on their own.
+- Using D3D9 directly in the ASI: it causes visual corruption; overlays go through `CSprite2d`.
 
 ---
 
-## Nota sobre el código fuente
+## Scope: runtime, not a gameplay framework
 
-Este repo contiene **el mod compilado**, no el proyecto que lo produce. El source C++ (runtime,
-bridge CLEO, helper, SDK de CEF, tests) vive en `C:\Dev\SAWebUI` y compila a
+SAWeb is a web UI runtime for GTA SA. It does not know what `money`, `inventory`, `weapon`, `mission`
+or `player` are, and it should not learn.
+
+Mods keep seeing only `SAWeb.ui.*` / `SAWeb.on` / `SAWeb.onAny` / `window.SAWeb`: nothing about
+CEF.
+
+**Deliberately out of scope:** any domain API in SAWeb (money, inventory, weapons) and a v2 protocol
+with large payloads — that lives in the mod, or the cheap fix when the UI that suffers from it shows
+up is to log the truncation.
+
+---
+
+## Note about the source code
+
+This repo contains **the compiled mod**, not the project that produces it. The C++ source (runtime,
+CLEO bridge, helper, CEF SDK, tests) lives in `C:\Dev\SAWebUI` and builds to
 `bin\GTA-SA\Release\SAWebUI.SA.asi`.
 
-Tests del bridge, sin necesidad de abrir el juego (requieren Node, no GTA ni CEF):
+Bridge tests, without needing to open the game (they require Node, not GTA or CEF):
 
 ```powershell
 cd C:\Dev\SAWebUI
 node tests/run.js
 ```
 
-Verifican el shim embebido en el runtime y el facade `SAWeb.js` (contrato, carrera, ownership,
-hello, reintentos).
+They verify the shim embedded in the runtime and the `SAWeb.js` facade (contract, race, ownership,
+hello, retries).
 
-> El post-build de la ASI ejecuta `taskkill /IM gta_sa.exe`. Para no matar la partida en curso,
-> agregar `/p:PostBuildEventUseInBuild=false` y copiar el `.asi` a mano con el juego cerrado.
+> The ASI post-build step runs `taskkill /IM gta_sa.exe`. To avoid killing the game in progress, add
+> `/p:PostBuildEventUseInBuild=false` and copy the `.asi` by hand with the game closed.
 
 ---
 
-## Autoría
+## Credits
 
 **Yeiko** · [github.com/YeikoD/SAWebUI](https://github.com/YeikoD/SAWebUI)
