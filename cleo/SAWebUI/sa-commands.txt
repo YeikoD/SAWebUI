@@ -1,0 +1,40 @@
+sa-commands.json
+================
+
+Declaracion de los 7 comandos que expone SAWebUI:
+
+    SAWEB_REGISTER_UI   SAWEB_OPEN_UI     SAWEB_CLOSE_UI
+    SAWEB_TOGGLE_UI     SAWEB_IS_UI_OPEN  SAWEB_SEND_EVENT
+    SAWEB_SET_CURSOR
+
+ESTE ARCHIVO NO LO LEE CLEO AQUI.
+---------------------------------
+Lo probe (25/09/2026): con la seccion "saweb" movida adentro de
+modloader\SAWebUI\cleo\.config\, CLEO Redux arranco con los 7 comandos sin
+declarar y fallo asi:
+
+    [WARN] Plugin attempted to register an unknown command SAWEB_REGISTER_UI.
+    [ERROR] Command with the name SAWEB_IS_UI_OPEN not found
+
+O sea que la declaracion NO es cosmetica: sin ella CLEO no registra el comando
+y native() lo tira. Los avisos de ImGui dan la sensacion contraria porque esos
+comandos nunca se invocan, pero con SAWeb el comando no existe.
+
+CLEO Redux solo lee la raiz del juego:
+
+    <GTA SA>\cleo\.config\sa.json
+
+COMO INSTALAR
+-------------
+1. Abrir <GTA SA>\cleo\.config\sa.json
+2. Copiar el objeto de este archivo (el que tiene "name": "saweb") dentro del
+   array "extensions", al final. Queda como una extension mas, junto a
+   "default", "CLEO", "CLEO+", etc.
+3. Ojo con las comas: si "saweb" es el ultimo, el elemento ANTERIOR lleva coma
+   y "saweb" NO. Si hay mas elementos despues, "saweb" lleva coma.
+
+Verificar: al arrancar, cleo_redux.log tiene que mostrar
+"Registering command SAWEB_..." siete veces y ningun "unknown command SAWEB".
+
+Ojo con las actualizaciones de CLEO Redux: pueden pisar sa.json y sacar la
+seccion. Si pasa, hay que volver a copiar este archivo.

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <title>SAWebUI — Guía Modder & Framework</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- Panel Principal Estilo GTA SA Stats Menu -->
+  <section id="panel" class="box">
+    <div class="panel-header">
+      <h1 id="title">SAWebUI</h1>
+      <div id="subtitle">GUÍA MODDER & FRAMEWORK</div>
+    </div>
+
+    <!-- Banner Informativo F12 -->
+    <div class="cursor-banner">
+      💡 Presiona <b>F12</b> para alternar el cursor del mouse
+    </div>
+
+    <!-- Pestañas de Secciones -->
+    <div id="tabs" role="tablist">
+      <button class="tab active" data-tab="demo" role="tab">Demo</button>
+      <button class="tab" data-tab="cleo" role="tab">CLEO</button>
+      <button class="tab" data-tab="html" role="tab">HTML</button>
+      <button class="tab" data-tab="design" role="tab">Diseño</button>
+      <button class="tab" data-tab="rules" role="tab">Reglas</button>
+      <button class="tab" data-tab="logger" role="tab">Log</button>
+    </div>
+
+    <!-- Filas Interactivas -->
+    <div id="rows" role="listbox" aria-label="Navegación SAWebUI"></div>
+
+    <!-- Botones de Navegación -->
+    <div id="nav" aria-label="Controles de navegación">
+      <span id="nav-prev" class="navbtn" title="Sección Anterior (Flecha Izq / Q)">&#9664;</span>
+      <span id="nav-next" class="navbtn" title="Sección Siguiente (Flecha Der / E)">&#9654;</span>
+    </div>
+
+    <!-- Franja inferior de estado -->
+    <div id="strip">
+      <span id="strip-left">—</span>
+      <span id="strip-right">—</span>
+    </div>
+
+    <!-- Footer con Logo y Link a GitHub YeikoD/SAWebUI -->
+    <div class="brand-footer">
+      <a href="https://github.com/YeikoD/SAWebUI" target="_blank" class="brand-link" title="Ver repositorio en GitHub (https://github.com/YeikoD/SAWebUI)">
+        <img src="assets/logo_yeiko_v1.png" alt="Yeiko Logo" class="brand-logo-img">
+        <span class="brand-author">By <b>Yeiko</b></span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Ventana Secundaria: Guía / Tutorial Modal para Modders -->
+  <section id="tutorial-box" class="box hidden">
+    <div class="tutorial-header">
+      <h2 id="tut-title">Título del Tutorial</h2>
+      <div class="tutorial-header-right">
+        <a href="https://github.com/YeikoD/SAWebUI" target="_blank" class="brand-badge-subtle" title="GitHub: YeikoD/SAWebUI">
+          <img src="assets/logo_yeiko_v1.png" alt="" class="brand-tiny-logo">
+          <span>By Yeiko</span>
+        </a>
+        <button id="tut-close" title="Cerrar (ESC)">&#10005;</button>
+      </div>
+    </div>
+    <div id="tut-content" class="tutorial-body">
+      <!-- El contenido interactivo y código se inyecta dinámicamente -->
+    </div>
+    <div class="tutorial-footer">
+      <button id="tut-action" class="btn-action">Ejecutar Prueba</button>
+      <span class="tut-tip">Pulsa <b>ENTER</b> o haz click para ver los detalles del tutorial</span>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

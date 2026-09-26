@@ -1,0 +1,535 @@
+/* SAWebUI — Estética Vanilla Pantalla Stats & Guía Interactiva para Modders.
+   Proporciones medidas sobre captura real de GTA SA (1200x675) en vw/vh. */
+
+@font-face {
+  font-family: "SAWeb Diploma";
+  src: url("assets/webfonts_Diploma-Regular/Diploma-Regular.ttf.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "SAWeb Gothic";
+  src: url("fonts/saweb-gothic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  --margin-x: 3.75vw;
+  --panel-w: 22vw;
+  --label-w: 9.8vw;
+  --row-h: 3.1vh;
+  --color-gold: #ece5d3;
+  --color-accent: #4ed967; /* Acento verde brillante estilo Grove Street */
+  --color-green: #9fd6a0;
+  --color-blue: #8fb4d4;
+  --color-bg-box: rgba(8, 8, 8, 0.86);
+  --color-border: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  color: #d8d8d8;
+  font-family: "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+/* Cajas semitransparentes del estilo GTA SA */
+.box {
+  position: fixed;
+  background: var(--color-bg-box);
+  border: 1px solid var(--color-border);
+  padding: 0.9vh 0.7vw;
+  box-shadow: 0 0.5vh 2vh rgba(0, 0, 0, 0.5);
+}
+
+#panel {
+  left: var(--margin-x);
+  top: 25vh;
+  width: var(--panel-w);
+  padding: 0 0.7vw 0.5vh;
+}
+
+/* ------------------------------------------------------------------ Título & Encabezado -- */
+
+.panel-header {
+  margin-top: -3.4vh;
+  margin-bottom: 0.4vh;
+}
+
+#title {
+  font-family: "SAWeb Diploma", "SAWeb Gothic", serif;
+  font-size: 5.2vh;
+  line-height: 1.0;
+  margin: 0 0 0 -0.5vw;
+  color: var(--color-gold);
+  text-shadow: 0.25vh 0.25vh 0 #000;
+  font-weight: 400;
+}
+
+#subtitle {
+  font-size: 1.25vh;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.08vw;
+  text-transform: uppercase;
+  text-shadow: 1px 1px 2px #000;
+}
+
+/* Banner Informativo F12 */
+.cursor-banner {
+  font-size: 1.25vh;
+  color: var(--color-gold);
+  background: rgba(78, 217, 103, 0.12);
+  border: 1px solid rgba(78, 217, 103, 0.25);
+  border-radius: 3px;
+  padding: 0.35vh 0.5vw;
+  margin-bottom: 0.6vh;
+  text-align: center;
+  box-shadow: inset 0 0 6px rgba(78, 217, 103, 0.1);
+}
+
+.cursor-banner b {
+  color: var(--color-accent);
+}
+
+/* Footer / Link GitHub Yeiko */
+.brand-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5vh;
+  padding-top: 0.4vh;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4vw;
+  color: #aaa;
+  font-size: 1.35vh;
+  text-decoration: none;
+  padding: 0.3vh 0.7vw;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(78, 217, 103, 0.25);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.brand-link:hover {
+  color: var(--color-accent);
+  background: rgba(78, 217, 103, 0.12);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 8px rgba(78, 217, 103, 0.3);
+}
+
+.brand-logo-img {
+  height: 1.8vh;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 2px rgba(78, 217, 103, 0.4));
+}
+
+.brand-author b {
+  color: var(--color-gold);
+}
+
+.brand-link:hover .brand-author b {
+  color: #ffffff;
+}
+
+.brand-tiny-logo {
+  height: 1.4vh;
+  width: auto;
+  vertical-align: middle;
+}
+
+/* ---------------------------------------------------------------- Pestañas -- */
+
+#tabs {
+  display: flex;
+  gap: 0.2vw;
+  margin-bottom: 0.8vh;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.4vh;
+}
+
+.tab {
+  flex: 1 1 0;
+  height: 2.5vh;
+  background: #141414;
+  border: 1px solid #333;
+  color: #888;
+  font-family: inherit;
+  font-size: 1.3vh;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab:hover {
+  background: #252525;
+  color: #bbb;
+}
+
+.tab.active {
+  background: #323232;
+  color: #fff;
+  border-color: var(--color-accent);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+/* ------------------------------------------------------------------- Filas -- */
+
+#rows {
+  display: flex;
+  flex-direction: column;
+  min-height: 19vh;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  height: var(--row-h);
+  font-size: 1.75vh;
+  padding: 0 0.3vw;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.1s ease;
+}
+
+.row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.row .label {
+  flex: 0 0 var(--label-w);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row.selected {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.row.selected .label {
+  font-weight: 700;
+  color: var(--color-gold);
+}
+
+.row .track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 1.2vh;
+  background: #444;
+  overflow: hidden;
+}
+
+.row .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: #b5b5b5;
+  transition: width 0.1s linear;
+}
+
+.row.selected .track {
+  background: #5a5a5a;
+}
+
+.row.selected .fill {
+  background: #ffffff;
+}
+
+.row.readonly .fill {
+  background: #888888;
+}
+
+.row input[type="range"] {
+  position: absolute;
+  inset: -2vh 0;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+
+.row input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2.4vh;
+  background: #000;
+  border: 1px solid #3c3c3c;
+  color: #fff;
+  font: inherit;
+  font-size: 1.6vh;
+  padding: 0 0.4vw;
+  outline: none;
+  user-select: text;
+}
+
+.row input[type="text"]:focus {
+  border-color: var(--color-gold);
+}
+
+/* ------------------------------------------------------------- Navegación -- */
+
+#nav {
+  display: flex;
+  gap: 0.5vw;
+  margin-top: 0.7vh;
+}
+
+.navbtn {
+  flex: 1 1 0;
+  height: 2.6vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a1a;
+  border: 1px solid #454545;
+  color: #8a8a8a;
+  font-size: 1.5vh;
+  cursor: pointer;
+}
+
+.navbtn:hover {
+  background: #2a2a2a;
+  color: #fff;
+  border-color: #666;
+}
+
+/* -------------------------------------------------------- Franja Inferior -- */
+
+#strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5vw;
+  height: 5.5vh;
+  margin-top: 0.7vh;
+  margin-bottom: 0.2vh;
+  padding: 0 0.5vw;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 1.8vh;
+  font-weight: 700;
+  color: #e0e0e0;
+  white-space: nowrap;
+}
+
+#strip-left {
+  flex: 0 0 auto;
+}
+
+#strip-left.warn {
+  color: var(--color-accent);
+}
+
+#strip-right {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  font-weight: 400;
+  font-size: 1.6vh;
+  color: var(--color-blue);
+}
+
+#strip-right.incoming {
+  color: var(--color-green);
+}
+
+/* -------------------------------------------------- Ventana Tutorial Modal -- */
+
+#tutorial-box {
+  left: calc(var(--margin-x) + var(--panel-w) + 1.2vw);
+  top: 25vh;
+  width: 36vw;
+  max-height: 65vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 12, 16, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 1.2vh 1vw;
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
+}
+
+#tutorial-box.hidden {
+  display: none !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.tutorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.8vh;
+  margin-bottom: 1vh;
+}
+
+.tutorial-header h2 {
+  font-family: "SAWeb Diploma", "SAWeb Gothic", serif;
+  font-size: 3.2vh;
+  color: var(--color-gold);
+  font-weight: 400;
+}
+
+.tutorial-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6vw;
+}
+
+.brand-badge-subtle {
+  font-size: 1.3vh;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: rgba(78, 217, 103, 0.1);
+  border: 1px solid rgba(78, 217, 103, 0.25);
+  padding: 0.2vh 0.5vw;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 0.3vw;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.brand-badge-subtle:hover {
+  background: rgba(78, 217, 103, 0.25);
+  color: #ffffff;
+}
+
+#tut-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 2.2vh;
+  cursor: pointer;
+  padding: 0 0.4vw;
+}
+
+#tut-close:hover {
+  color: #fff;
+}
+
+.tutorial-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 0.5vw;
+  font-size: 1.7vh;
+  line-height: 1.45;
+  color: #cfcfcf;
+}
+
+.tutorial-body p {
+  margin-bottom: 1vh;
+}
+
+.tutorial-body ul {
+  margin-left: 1.2vw;
+  margin-bottom: 1vh;
+}
+
+.tutorial-body li {
+  margin-bottom: 0.4vh;
+}
+
+.tutorial-body pre {
+  background: #090b0e;
+  border: 1px solid #282e38;
+  border-left: 3px solid var(--color-accent);
+  padding: 1vh 0.8vw;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 1.5vh;
+  color: #e6e6e6;
+  overflow-x: auto;
+  margin: 1vh 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tutorial-body code {
+  font-family: "Consolas", "Courier New", monospace;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-accent);
+  padding: 0.1vh 0.3vw;
+  border-radius: 2px;
+}
+
+.tutorial-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1vh;
+  margin-top: 1vh;
+}
+
+.btn-action {
+  background: #1e3223;
+  border: 1px solid #3c6e45;
+  color: #bbf2c4;
+  padding: 0.6vh 1vw;
+  font-family: inherit;
+  font-size: 1.6vh;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action:hover {
+  background: #2a4832;
+  color: #ffffff;
+  border-color: #559e62;
+}
+
+.tut-tip {
+  font-size: 1.4vh;
+  color: #888;
+}
+
+/* Badges y Resaltados */
+.badge {
+  display: inline-block;
+  padding: 0.2vh 0.5vw;
+  font-size: 1.3vh;
+  font-weight: bold;
+  border-radius: 2px;
+  margin-right: 0.3vw;
+}
+
+.badge-info { background: #1a324b; color: #8fb4d4; border: 1px solid #2d547d; }
+.badge-warn { background: #1d3b20; color: #4ed967; border: 1px solid #326e3d; }
+.badge-success { background: #1b3b20; color: #9fd6a0; border: 1px solid #336e3c; }
+.badge-danger { background: #421616; color: #f58484; border: 1px solid #752929; }

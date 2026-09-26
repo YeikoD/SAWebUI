@@ -1,0 +1,160 @@
+{
+  "meta": {
+    "last_update": 1777218937254,
+    "version": "1.58",
+    "url": "https://library.sannybuilder.com/#/sa"
+  },
+  "extensions": [
+    {
+      "name": "saweb",
+      "commands": [
+        {
+          "id": "E700",
+          "name": "SAWEB_REGISTER_UI",
+          "num_params": 3,
+          "short_desc": "Registers a SAWeb UI instance with an id and a url",
+          "input": [
+            {
+              "name": "uiId",
+              "type": "string"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            }
+          ],
+          "output": [
+            {
+              "name": "result",
+              "type": "int",
+              "source": "var_any"
+            }
+          ]
+        },
+        {
+          "id": "E701",
+          "name": "SAWEB_OPEN_UI",
+          "num_params": 2,
+          "short_desc": "Opens a registered SAWeb UI instance",
+          "input": [
+            {
+              "name": "uiId",
+              "type": "string"
+            }
+          ],
+          "output": [
+            {
+              "name": "result",
+              "type": "int",
+              "source": "var_any"
+            }
+          ]
+        },
+        {
+          "id": "E702",
+          "name": "SAWEB_CLOSE_UI",
+          "num_params": 2,
+          "short_desc": "Closes a registered SAWeb UI instance",
+          "input": [
+            {
+              "name": "uiId",
+              "type": "string"
+            }
+          ],
+          "output": [
+            {
+              "name": "result",
+              "type": "int",
+              "source": "var_any"
+            }
+          ]
+        },
+        {
+          "id": "E703",
+          "name": "SAWEB_TOGGLE_UI",
+          "num_params": 2,
+          "short_desc": "Toggles a registered SAWeb UI instance open or closed",
+          "input": [
+            {
+              "name": "uiId",
+              "type": "string"
+            }
+          ],
+          "output": [
+            {
+              "name": "result",
+              "type": "int",
+              "source": "var_any"
+            }
+          ]
+        },
+        {
+          "id": "E704",
+          "name": "SAWEB_IS_UI_OPEN",
+          "num_params": 2,
+          "short_desc": "Returns whether a registered SAWeb UI instance is open",
+          "input": [
+            {
+              "name": "uiId",
+              "type": "string"
+            }
+          ],
+          "output": [
+            {
+              "name": "result",
+              "type": "int",
+              "source": "var_any"
+            }
+          ]
+        },
+        {
+          "id": "E705",
+          "name": "SAWEB_SEND_EVENT",
+          "num_params": 4,
+          "short_desc": "Sends an event to a SAWeb UI instance",
+          "input": [
+            {
+              "name": "uiId",
+              "type": "string"
+            },
+            {
+              "name": "eventName",
+              "type": "string"
+            },
+            {
+              "name": "dataJson",
+              "type": "string"
+            }
+          ],
+          "output": [
+            {
+              "name": "result",
+              "type": "int",
+              "source": "var_any"
+            }
+          ]
+        },
+        {
+          "id": "E706",
+          "name": "SAWEB_SET_CURSOR",
+          "num_params": 2,
+          "short_desc": "Sets the cursor mode: -1 automatic, 0 hidden, 1 visible. Also gates the UI keyboard input",
+          "input": [
+            {
+              "name": "mode",
+              "type": "int"
+            }
+          ],
+          "output": [
+            {
+              "name": "result",
+              "type": "int",
+              "source": "var_any"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "classes": []
+}

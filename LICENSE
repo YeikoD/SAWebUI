@@ -1,0 +1,40 @@
+LICENCIA PROPIETARIA — SAWebUI
+Copyright (c) 2026 YeikoD. Todos los derechos reservados.
+
+Este software (SAWebUI.SA.asi, SAWebUICefHelper.exe, SAWeb.cleo, los archivos de
+cleo/ y web/, y la documentacion) es propiedad de YeikoD. NO es software libre y
+no se distribuye bajo ninguna licencia de codigo abierto.
+
+1. AUSENCIA DE LICENCIA
+   Salvo que un archivo individual indique lo contrario, no se concede permiso
+   alguno para copiar, publicar, redistribuir, vender, sublicenciar ni crear
+   obras derivadas de este software.
+
+2. USO PERSONAL
+   Se permite instalar y usar este software en una instalacion personal de Grand
+   Theft Auto San Andreas, y modificarlo para ese uso personal. No esta permitido
+   redistribuir ninguna copia, original ni modificada.
+
+3. USO COMERCIAL
+   Se prohibe el uso comercial, la venta, la integracion en productos o paquetes
+   de distribucion, y la monetizacion de cualquier forma.
+
+4. FUENTE CERRADO
+   El codigo fuente de este software no es publico. Se reservan todos los derechos
+   sobre el codigo fuente y sobre los procesos de fabricacion.
+
+5. CREDITOS
+   Cualquier uso debe mantener el credito al autor.
+
+6. SIN GARANTIA
+   Este software se entrega "tal cual", sin garantia de ningun tipo.
+
+7. TERMINACION
+   El incumplimiento termina automaticamente los permisos otorgados por esta
+   licencia.
+
+---
+
+Este repositorio contiene binarios que incorporan Chromium Embedded Framework
+(CEF), que se distribuye bajo licencia BSD. Ver THIRD-PARTY-LICENSES/cef-LICENSE.txt
+y THIRD-PARTY-NOTICES.md.
