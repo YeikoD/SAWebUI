@@ -6,6 +6,9 @@ drive UIs, events and state **without knowing anything about CEF, D3D9 or Win32*
 
 The UI is plain HTML: it is edited and reloaded, not compiled.
 
+<img width="1919" height="1008" alt="image" src="https://github.com/user-attachments/assets/4562e7fa-f199-4c52-bcb2-7a9ff6f9ff2b" />
+<img width="1919" height="1031" alt="image" src="https://github.com/user-attachments/assets/247855af-3d2c-4771-b6d0-ea95205f673c" />
+
 ```text
 HTML/CSS/JS  →  CEF OSR  →  OnPaint()  →  BGRA buffer  →  RwRaster/RwTexture  →  GTA (D3D9)
 ```
